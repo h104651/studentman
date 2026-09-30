@@ -14,16 +14,22 @@
 - 114 官方學生原始檔無在學紀錄：**1（亞洲大學創意設計學院不分系國際設計學士班，114計0）**
 
 ### 高中職
-- `generated/highschool-relevant-counts-114.csv`
+- **Canonical：`generated/highschool-scope-counts-114.csv`**
 - 統計單位：學校
-- 同校所有本案相關科別合併
+- 不再以舊 Excel 科別字串決定總數；改由教育部 114 現行科別反推本案範圍
+- 納入範圍：設計／汽車／機械／機電／電機／電子／資訊／控制／冷凍空調／飛機修護／航空電子等
+- 排除商管誤判：電子商務／商用資訊／資訊管理／商業資訊／商務資訊
 - 最終學校數：**176**
-- 114 明確為 0 的項目會輸出數字 **0**，不留空白
+- FINAL_SCOPE_MATCHED：**174**
+- FINAL_NOT_OPEN_114：**1**（自強高工，115 首招）
+- FINAL_ZERO_NO_RELEVANT_114_DEPT：**1**（格致高中）
+- 舊名單總數與最終 scope 總數不同：**111 校**，主因是舊名單漏列現行相關科別
+- `generated/highschool-relevant-counts-114.csv` 僅作「舊名單逐科對照稽核」，**不得當最終回填來源**
 
 ## Validation
 - `generated/validation-report.md`
 - 大專待人工判讀：**0**
-- 高中職待人工判讀：**0**
+- 高中職 scope-based 待人工判讀：**0**
 - 大專跨窗口重複：**0**
 
 ## Source mapping
