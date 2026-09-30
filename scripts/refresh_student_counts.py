@@ -37,7 +37,7 @@ def clean(s):
 
 def norm_school(s):
     x = clean(s)
-    for phrase in ("學校財團法人", "財團法人", "學校法人", "台南家專", "臺南家專", "中信金", "城市"):
+    for phrase in ("學校財團法人", "財團法人", "學校法人", "台南家專", "臺南家專", "中信金"):
         x = x.replace(phrase, "")
     return x
 
@@ -89,9 +89,9 @@ def plausible_univ_dept(target, official):
     on = re.sub(r"(學系|系|研究所|學士學位學程|碩士學位學程|學位學程|科)$", "", o)
     if not t or len(t) < 2:
         return False
-    if on == t or o.startswith(t):
-        return True
-    return len(t) >= 4 and t in on
+    # Only exact/prefix matches are safe. "contains" caused unrelated embedded program names
+    # (e.g. 冷凍空調與能源系_機械工程專班) to be counted under 機械工程系.
+    return on == t or o.startswith(t)
 
 def parse_targets(s):
     out = []
