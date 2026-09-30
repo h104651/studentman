@@ -4,7 +4,7 @@
 
 ## 目前狀態
 
-**114 學年度學生人數查核已完成；尚未回寫 Excel。**
+**114 學年度學生人數查核已完成；主 Excel 已完成最終回填與整理。**
 
 - 大專：**212 個合併邀請窗口**，待人工判讀 **0**
 - 高中職：**176 校**，待人工判讀 **0**
@@ -29,3 +29,22 @@
 - 只採正式在學人數，不用招生名額或舊年度推估。
 
 請從 [data/README.md](data/README.md) 與 [research/student-count-research-2026-09-30.md](research/student-count-research-2026-09-30.md) 開始閱讀。
+
+
+## Excel 最終回填
+
+- 完成日：**2026-09-30**
+- 最終檔名：`台灣設計_汽車_引擎_機械電機航太_NVH_全台學校邀請名單_最終回填版_20260930.xlsx`
+- 大專：原 243 列依同一邀請／行政窗口合併為 **212 個窗口**
+  - 114 正式學生數待人工判讀：**0**
+  - 非獨立招生研究中心／實驗室：**7 筆 N/A**
+  - 跨窗口重複官方學生列：**0**
+- 高中職：**176 校**
+  - FINAL_SCOPE_MATCHED：**174**
+  - 114 尚未開辦：**1**
+  - 114 無符合本案範圍科別：**1**
+  - 待人工判讀：**0**
+- Excel 回填來源只採 canonical 結果：
+  - `data/generated/university-window-counts-114.csv`
+  - `data/generated/highschool-scope-counts-114.csv`
+- Excel 二進位檔不作為 repo SSOT；repo 以 canonical CSV、validation report 與本回填紀錄作可追溯依據。
