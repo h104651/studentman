@@ -37,12 +37,14 @@
 - 待人工判讀：**0**
 
 ### 高中職
+舊名單逐科比對已完成，但最終統計改採 **114 官方現行科別 scope-based** 口徑，避免舊 Excel 漏科／舊科名造成低估。
+
 - 學校：**176**
-- AUTO_MATCHED：167
-- MATCHED_WITH_114_ABSENCES：6
-- NOT_OPEN_114：1
-- NO_114_TARGET_DEPT：2
+- FINAL_SCOPE_MATCHED：**174**
+- FINAL_NOT_OPEN_114：**1**（新竹縣自強高工，115學年度首招）
+- FINAL_ZERO_NO_RELEVANT_114_DEPT：**1**（格致高中）
 - 待人工判讀：**0**
+- 與舊 target-based 總數不同：**111 校**
 
 ## 3. 特殊狀態說明
 
@@ -65,7 +67,8 @@
 ## 5. Canonical files
 
 - 大專最終結果：`data/generated/university-window-counts-114.csv`
-- 高中職最終結果：`data/generated/highschool-relevant-counts-114.csv`
+- 高中職最終結果：`data/generated/highschool-scope-counts-114.csv`
+- 高中職舊名單稽核：`data/generated/highschool-relevant-counts-114.csv`（非回填來源）
 - 最終驗證：`data/generated/validation-report.md`
 - 大專來源映射：`data/university-targets.csv`
 - 高中職來源映射：`data/highschool-targets.csv`
@@ -74,4 +77,10 @@
 
 ## 6. 下一階段
 
-人數研究已完成。下一階段若要執行，應直接以 canonical CSV 回寫「格式統一版 Excel」，同時依大專 212 個窗口重新合併原本重複列；不要再回到早期逐列人數口徑。
+人數研究已完成。下一階段若要執行，應：
+1. 大專使用 `university-window-counts-114.csv`；
+2. 高中職使用 `highschool-scope-counts-114.csv`；
+3. 回寫「格式統一版 Excel」；
+4. 大專依 212 個實際邀請窗口合併原本重複列；
+5. 高中職一校一筆，科別欄同步改成 114 官方現行相關科別；
+6. 不再回到早期逐列或舊 target 科別口徑。
