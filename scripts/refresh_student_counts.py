@@ -188,12 +188,12 @@ with open(OUT / "university-window-counts-114.csv", "w", encoding="utf-8", newli
 hyear = pick_field(hs_headers, ["學年度"])
 hcode = pick_field(hs_headers, ["學校代碼"])
 hschool = pick_field(hs_headers, ["學校名稱"])
-hdept = pick_field(hs_headers, ["科別名稱", "科別"])
+hdept = pick_field(hs_headers, ["科系名稱", "科別名稱", "科別"])
 if not all((hyear, hschool, hdept)):
     raise RuntimeError("High-school schema not recognized: %s" % hs_headers)
 
 htotal = pick_field(hs_headers, ["學生數總計", "學生數合計", "總計"])
-grade_sex_cols = [h for h in hs_headers if ("年級" in clean(h) and "學生數" in clean(h) and ("男" in clean(h) or "女" in clean(h)))]
+grade_sex_cols = [h for h in hs_headers if ("學生數" in clean(h) and ("男" in clean(h) or "女" in clean(h)))]
 if not htotal and not grade_sex_cols:
     raise RuntimeError("Cannot identify high-school count columns: %s" % hs_headers)
 
