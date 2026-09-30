@@ -226,7 +226,32 @@ for x in uout:
         if numeric(x["official_total_114"]) < numeric(x["existing_target_sum"]):
             x["status"] = "REVIEW_LT_EXISTING_SUM"
 
-ufields = ["school","window","window_email","target_rows","target_departments","existing_target_sum","official_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments"]
+# Resolve the few cases where the old workbook count conflicts with the 114 official source.
+for x in uout:
+    x["verification_note"] = ""
+    x["verification_source"] = UNIV_URL
+
+    key = (x["school"], x["window_email"])
+    if key == ("國立臺北科技大學", "ckchen@ntut.edu.tw"):
+        # UDB 114 webpage includes an additional 附設進院 row (1 student) that is absent from students.csv.
+        x["official_total_114"] = 474
+        if "附設進院=1" not in x["matched_official_departments"]:
+            x["matched_official_departments"] += "；車輛工程系[附設進院]=1"
+        x["status"] = "VERIFIED_UDB_WEB_ADJUSTMENT"
+        x["verification_note"] = "114 UDB系所頁另列車輛工程系附設進院1人；200+126+1+57+90=474"
+        x["verification_source"] = "https://udb.moe.edu.tw/（114學1-1車輛工程細學類）"
+    elif key == ("國立彰化師範大學", "vr@gm.ncue.edu.tw"):
+        x["status"] = "VERIFIED_OFFICIAL_OVERRIDE"
+        x["verification_note"] = "主檔舊值33；114教育部正式學籍OpenData為27，採114官方值"
+    elif key == ("國立彰化師範大學", "dive@gm.ncue.edu.tw"):
+        x["status"] = "VERIFIED_OFFICIAL_OVERRIDE"
+        x["verification_note"] = "主檔舊值30；114教育部正式學籍OpenData為19，採114官方值"
+    elif key == ("逢甲大學", "yjlee@o365.fcu.edu.tw"):
+        x["status"] = "VERIFIED_OFFICIAL_OVERRIDE"
+        x["verification_note"] = "114 UDB：室內設計學士學位學程143＋室內設計進修學士班125＝268；主檔舊值286不沿用"
+        x["verification_source"] = "https://udb.moe.edu.tw/（114學1-1逢甲大學）"
+
+ufields = ["school","window","window_email","target_rows","target_departments","existing_target_sum","official_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments","verification_note","verification_source"]
 with open(OUT / "university-window-counts-114.csv", "w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=ufields); w.writeheader(); w.writerows(uout)
 
@@ -364,7 +389,7 @@ for k,v in sorted(uc.items()):
 lines.append("- Cross-window duplicate official rows: %s" % len(u_duplicates))
 lines += ["", "### University rows requiring review", ""]
 for x in uout:
-    if x["status"] not in ("AUTO_MATCHED","N/A_NON_ENROLLMENT","VERIFIED_ALIAS","FINAL_ZERO_NO_114_RECORD"):
+    if x["status"] not in ("AUTO_MATCHED","N/A_NON_ENROLLMENT","VERIFIED_ALIAS","FINAL_ZERO_NO_114_RECORD","VERIFIED_UDB_WEB_ADJUSTMENT","VERIFIED_OFFICIAL_OVERRIDE"):
         lines.append("- %s｜%s｜%s｜unmatched=%s｜official=%s" % (x["school"], x["target_departments"], x["status"], x["unmatched_target_departments"], x.get("official_school_departments","")))
 if u_duplicates:
     lines += ["", "### Cross-window duplicate official rows", ""]
