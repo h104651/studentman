@@ -128,6 +128,10 @@ for r in u114:
 with open(DATA / "university-targets.csv", encoding="utf-8") as f:
     targets = list(csv.DictReader(f))
 
+UNIV_EXTRA_PREFIXES = {
+    ("吳鳳科技大學", "jlchen@wfu.edu.tw"): ["機械工程系"],
+}
+
 ugroups = defaultdict(list)
 for t in targets:
     dept = clean(t["department"])
@@ -146,7 +150,7 @@ for (school_key, window), group in ugroups.items():
         uout.append({
             "school": school, "window": group[0].get("window_name",""), "window_email": group[0].get("window_email",""),
             "target_rows": "|".join(x["row"] for x in group), "target_departments": "；".join(x["department"] for x in group),
-            "official_total_114": "", "matched_official_departments": "", "official_school_departments": "", "status": "N/A_NON_ENROLLMENT",
+            "existing_target_sum": "", "official_total_114": "", "matched_official_departments": "", "official_school_departments": "", "status": "N/A_NON_ENROLLMENT",
             "unmatched_target_departments": ""
         })
         continue
@@ -164,8 +168,15 @@ for (school_key, window), group in ugroups.items():
         for r in hits:
             ident = tuple((h, clean(r.get(h))) for h in univ_headers)
             unique[ident] = r
+    # Add explicitly verified legacy-name rows that belong to the same current administrative window.
+    for extra_prefix in UNIV_EXTRA_PREFIXES.get((school, group[0].get("window_email","")), []):
+        for r in candidates:
+            if strip_paren(r.get(udept,"")).startswith(clean(extra_prefix)):
+                ident = tuple((h, clean(r.get(h))) for h in univ_headers)
+                unique[ident] = r
     rows = list(unique.values())
     total = sum(numeric(r.get(utotal)) for r in rows)
+    existing_numeric_sum = sum(numeric(x.get("current_count")) for x in group)
     details = ["%s=%s" % (r.get(udept), numeric(r.get(utotal))) for r in sorted(rows, key=lambda z: clean(z.get(udept)))]
     if not candidates:
         status = "NO_SCHOOL_MATCH"
@@ -178,6 +189,7 @@ for (school_key, window), group in ugroups.items():
     uout.append({
         "school": school, "window": group[0].get("window_name",""), "window_email": group[0].get("window_email",""),
         "target_rows": "|".join(x["row"] for x in group), "target_departments": "；".join(x["department"] for x in group),
+        "existing_target_sum": existing_numeric_sum if existing_numeric_sum else "",
         "official_total_114": total if rows else "", "matched_official_departments": "；".join(details),
         "official_school_departments": "；".join(sorted(set(str(r.get(udept,"")) for r in candidates))),
         "status": status, "unmatched_target_departments": "；".join(unmatched)
@@ -207,7 +219,14 @@ for x in uout:
         x["official_total_114"] = 0
         x["status"] = "FINAL_ZERO_NO_114_RECORD"
 
-ufields = ["school","window","window_email","target_rows","target_departments","official_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments"]
+# Safety guard: a new same-window aggregate should not silently fall below the sum of numeric
+# 114 counts already present in the source workbook mapping.
+for x in uout:
+    if x["status"] in ("AUTO_MATCHED","VERIFIED_ALIAS") and x.get("existing_target_sum") not in ("", None):
+        if numeric(x["official_total_114"]) < numeric(x["existing_target_sum"]):
+            x["status"] = "REVIEW_LT_EXISTING_SUM"
+
+ufields = ["school","window","window_email","target_rows","target_departments","existing_target_sum","official_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments"]
 with open(OUT / "university-window-counts-114.csv", "w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=ufields); w.writeheader(); w.writerows(uout)
 
