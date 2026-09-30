@@ -348,9 +348,15 @@ for t in htargets:
         status = "MATCHED_WITH_114_ABSENCES"
     else:
         status = "AUTO_MATCHED"
+    existing_hs_count = numeric(t.get("current_count")) if clean(t.get("current_count")) else ""
+    explicit_total = total if (matched_rows or status in ("NO_114_TARGET_DEPT","NOT_OPEN_114")) else ""
+    hs_verify_note = ""
+    if existing_hs_count != "" and explicit_total != "" and numeric(existing_hs_count) != numeric(explicit_total):
+        hs_verify_note = "主檔既有值%s；114教育部正式科別資料為%s，應採114官方值" % (existing_hs_count, explicit_total)
     hout.append({
         "school": t["school"], "school_code": t["school_code"], "target_departments": t["relevant_departments"],
-        "official_relevant_total_114": total if matched_rows else "", "matched_official_departments": "；".join(details),
+        "existing_target_count": existing_hs_count,
+        "official_relevant_total_114": explicit_total, "matched_official_departments": "；".join(details),
         "official_school_departments": "；".join("%s=%s" % (r.get(hdept), hs_row_total(r)) for r in sorted(candidates, key=lambda z: clean(z.get(hdept)))),
         "status": status, "unmatched_target_departments": "；".join(unmatched),
         "review_note": (
@@ -358,10 +364,11 @@ for t in htargets:
             else "114官方資料有學校但無所列目標科別" if status == "NO_114_TARGET_DEPT"
             else "115學年度首招，114無在學生" if status == "NOT_OPEN_114"
             else ""
-        )
+        ),
+        "verification_note": hs_verify_note
     })
 
-hfields = ["school","school_code","target_departments","official_relevant_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments","review_note"]
+hfields = ["school","school_code","target_departments","existing_target_count","official_relevant_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments","review_note","verification_note"]
 with open(OUT / "highschool-relevant-counts-114.csv", "w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=hfields); w.writeheader(); w.writerows(hout)
 
@@ -398,6 +405,12 @@ if u_duplicates:
 lines += ["", "## High school", "- Target schools: %s" % len(hout)]
 for k,v in sorted(hc.items()):
     lines.append("- %s: %s" % (k,v))
+hs_diffs = [x for x in hout if x.get("verification_note")]
+lines.append("- Existing-count corrections: %s" % len(hs_diffs))
+if hs_diffs:
+    lines += ["", "### High-school existing-count corrections", ""]
+    for x in hs_diffs:
+        lines.append("- %s (%s)｜%s" % (x["school"], x["school_code"], x["verification_note"]))
 lines += ["", "### High-school rows requiring review", ""]
 for x in hout:
     if x["status"] not in ("AUTO_MATCHED","MATCHED_WITH_114_ABSENCES","NO_114_TARGET_DEPT","NOT_OPEN_114"):
