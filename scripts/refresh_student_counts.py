@@ -385,8 +385,14 @@ HS_SCOPE_KEYWORDS = (
     "微電腦修護"
 )
 
+HS_SCOPE_EXCLUDES = (
+    "電子商務", "商用資訊", "資訊管理", "商業資訊", "商務資訊"
+)
+
 def hs_in_scope(name):
     n = clean(name)
+    if any(x in n for x in HS_SCOPE_EXCLUDES):
+        return False
     return any(k in n for k in HS_SCOPE_KEYWORDS)
 
 hs_scope_out = []
