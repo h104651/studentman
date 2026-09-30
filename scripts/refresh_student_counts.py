@@ -372,6 +372,55 @@ hfields = ["school","school_code","target_departments","existing_target_count","
 with open(OUT / "highschool-relevant-counts-114.csv", "w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=hfields); w.writeheader(); w.writerows(hout)
 
+# Final high-school calculation is driven by the current 114 official department list,
+# not by stale target names from the workbook.  A school is one invitation window, so
+# every current department in the agreed scope is included.
+HS_SCOPE_KEYWORDS = (
+    "設計", "美工", "美術工藝", "家具", "木工", "裝潢", "圖文傳播",
+    "多媒體", "廣告", "服裝", "流行服飾", "陶瓷工程", "金屬工藝",
+    "製圖", "電腦繪圖",
+    "汽車", "機車", "車輛", "重機", "機械", "機工", "動力機械",
+    "機電", "電機", "電子", "資訊", "控制", "冷凍空調",
+    "飛機修護", "航空電子", "生物產業機電", "生物機電", "自動化",
+    "微電腦修護"
+)
+
+def hs_in_scope(name):
+    n = clean(name)
+    return any(k in n for k in HS_SCOPE_KEYWORDS)
+
+hs_scope_out = []
+for t in htargets:
+    code = clean(t["school_code"])
+    candidates = h_by_code.get(code, []) or h_by_school.get(relaxed_school(t["school"]), [])
+    scoped = [r for r in candidates if hs_in_scope(r.get(hdept, ""))]
+    total = sum(hs_row_total(r) for r in scoped)
+    details = ["%s=%s" % (r.get(hdept), hs_row_total(r)) for r in sorted(scoped, key=lambda z: clean(z.get(hdept)))]
+    if code in HS_NOT_OPEN_114 and not candidates:
+        status = "FINAL_NOT_OPEN_114"
+        total = 0
+    elif not candidates:
+        status = "REVIEW_NO_SCHOOL_MATCH"
+    elif scoped:
+        status = "FINAL_SCOPE_MATCHED"
+    else:
+        status = "FINAL_ZERO_NO_RELEVANT_114_DEPT"
+        total = 0
+    hs_scope_out.append({
+        "school": t["school"],
+        "school_code": t["school_code"],
+        "official_scope_total_114": total if status != "REVIEW_NO_SCHOOL_MATCH" else "",
+        "official_scope_departments": "；".join(details),
+        "status": status,
+        "old_target_departments": t["relevant_departments"],
+        "old_target_total_114": next((x["official_relevant_total_114"] for x in hout if x["school_code"] == t["school_code"]), ""),
+        "scope_rule": "114官方現行科別；設計/汽車/機械/電機電子資訊/航空相關科別全納入"
+    })
+
+hs_scope_fields = ["school","school_code","official_scope_total_114","official_scope_departments","status","old_target_departments","old_target_total_114","scope_rule"]
+with open(OUT / "highschool-scope-counts-114.csv", "w", encoding="utf-8", newline="") as f:
+    w = csv.DictWriter(f, fieldnames=hs_scope_fields); w.writeheader(); w.writerows(hs_scope_out)
+
 # Cross-window duplicate audit: an exact official row should not be counted by two different invitation windows at the same school.
 u_row_owners = defaultdict(set)
 for x in uout:
@@ -407,6 +456,14 @@ for k,v in sorted(hc.items()):
     lines.append("- %s: %s" % (k,v))
 hs_diffs = [x for x in hout if x.get("verification_note")]
 lines.append("- Existing-count corrections: %s" % len(hs_diffs))
+hsc = Counter(x["status"] for x in hs_scope_out)
+lines += ["", "### High-school FINAL scope-based counts", ""]
+for k,v in sorted(hsc.items()):
+    lines.append("- %s: %s" % (k,v))
+scope_changed = [x for x in hs_scope_out if str(x.get("old_target_total_114","")) != str(x.get("official_scope_total_114",""))]
+lines.append("- Schools whose final scope total differs from old-target total: %s" % len(scope_changed))
+for x in scope_changed[:40]:
+    lines.append("- %s (%s)｜old=%s｜scope=%s｜%s" % (x["school"], x["school_code"], x.get("old_target_total_114",""), x.get("official_scope_total_114",""), x.get("official_scope_departments","")))
 if hs_diffs:
     lines += ["", "### High-school existing-count corrections", ""]
     for x in hs_diffs:
