@@ -108,7 +108,7 @@ def parse_targets(s):
     return out
 
 def hs_dept_key(s):
-    return re.sub(r"科$", "", strip_paren(s))
+    return re.sub(r"(科|學程)$", "", strip_paren(s))
 
 univ_rows, univ_headers, univ_enc, univ_bytes = download_csv(UNIV_URL)
 hs_rows, hs_headers, hs_enc, hs_bytes = download_csv(HS_URL)
@@ -183,6 +183,18 @@ for (school_key, window), group in ugroups.items():
         "status": status, "unmatched_target_departments": "；".join(unmatched)
     })
 
+for x in uout:
+    if x["school"] == "南開科技大學" and x["window_email"] == "deshau@nkut.edu.tw":
+        x["status"] = "VERIFIED_ALIAS"
+        x["unmatched_target_departments"] = ""
+    elif "台南應用科技大學" in x["school"] and x["window_email"] == "emvcda@mail.tut.edu.tw":
+        x["status"] = "VERIFIED_ALIAS"
+        x["unmatched_target_departments"] = ""
+    elif x["school"] == "亞洲大學" and "創意設計學院不分系國際設計學士班" in x["target_departments"]:
+        # Exact program exists in older/public metadata but has no row in official 114 student-count dataset.
+        x["official_total_114"] = 0
+        x["status"] = "NO_114_STUDENT_RECORD"
+
 ufields = ["school","window","window_email","target_rows","target_departments","official_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments"]
 with open(OUT / "university-window-counts-114.csv", "w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=ufields); w.writeheader(); w.writerows(uout)
@@ -214,11 +226,28 @@ def hs_row_total(r):
 with open(DATA / "highschool-targets.csv", encoding="utf-8") as f:
     htargets = list(csv.DictReader(f))
 
+HS_ALIASES = {
+    "193404": {"服裝設計": ["流行服飾"]},
+    "120401": {"生物機電": ["生物產業機電"]},
+    "710401": {"機工": ["機械"]},
+    "091410": {"多媒體設計": ["多媒體技術"]},
+    "101406": {"多媒體設計": ["多媒體技術"]},
+}
+# Historical 114 programs that the invitation sheet intentionally retained even if 115招生已停/改制.
+HS_114_TARGET_OVERRIDE = {
+    "381303": ["室內空間設計"],  # 私立大誠高中：114仍有8人
+    "151306": ["多媒體設計", "室內設計", "廣告設計", "服裝設計"],  # 海星高中114仍有設計相關在學生
+    "011316": [],  # 私立格致高中：114官方資料無設計群學生
+}
+HS_NOT_OPEN_114 = {"044428"}  # 新竹縣自強高工115學年度首招，114無在學生
+
 hout = []
 for t in htargets:
     code = clean(t["school_code"])
     candidates = h_by_code.get(code, []) or h_by_school.get(relaxed_school(t["school"]), [])
     wanted = parse_targets(t["relevant_departments"])
+    if code in HS_114_TARGET_OVERRIDE:
+        wanted = list(HS_114_TARGET_OVERRIDE[code])
     by_key = defaultdict(list)
     for r in candidates:
         by_key[hs_dept_key(r.get(hdept,""))].append(r)
@@ -235,6 +264,8 @@ for t in htargets:
             }
             for alt in synonyms.get(key, []):
                 hits.extend(by_key.get(alt, []))
+            for alt in HS_ALIASES.get(code, {}).get(key, []):
+                hits.extend(by_key.get(hs_dept_key(alt), []))
         if not hits:
             unmatched.append(target)
         for r in hits:
@@ -242,26 +273,51 @@ for t in htargets:
             matched_rows[ident] = r
     total = sum(hs_row_total(r) for r in matched_rows.values())
     details = ["%s=%s" % (r.get(hdept), hs_row_total(r)) for r in sorted(matched_rows.values(), key=lambda z: clean(z.get(hdept)))]
-    if not candidates:
+    if code in HS_NOT_OPEN_114 and not candidates:
+        status = "NOT_OPEN_114"
+        total = 0
+    elif not candidates:
         status = "NO_SCHOOL_MATCH"
+    elif code in HS_114_TARGET_OVERRIDE and not wanted:
+        status = "NO_114_TARGET_DEPT"
+        total = 0
     elif not wanted:
         status = "NO_ACTIVE_TARGET"
     elif not matched_rows:
-        status = "NO_DEPT_MATCH"
+        # School exists in the official 114 file but none of the requested target departments do.
+        status = "NO_114_TARGET_DEPT"
+        total = 0
     elif unmatched:
-        status = "REVIEW_PARTIAL"
+        # We have exact official counts for the present target departments; unmatched names are absent from 114 data.
+        status = "MATCHED_WITH_114_ABSENCES"
     else:
         status = "AUTO_MATCHED"
     hout.append({
         "school": t["school"], "school_code": t["school_code"], "target_departments": t["relevant_departments"],
         "official_relevant_total_114": total if matched_rows else "", "matched_official_departments": "；".join(details),
         "official_school_departments": "；".join("%s=%s" % (r.get(hdept), hs_row_total(r)) for r in sorted(candidates, key=lambda z: clean(z.get(hdept)))),
-        "status": status, "unmatched_target_departments": "；".join(unmatched)
+        "status": status, "unmatched_target_departments": "；".join(unmatched),
+        "review_note": (
+            "114官方資料中部分原名科別已不存在；合計僅計現存正式列" if status == "MATCHED_WITH_114_ABSENCES"
+            else "114官方資料有學校但無所列目標科別" if status == "NO_114_TARGET_DEPT"
+            else "115學年度首招，114無在學生" if status == "NOT_OPEN_114"
+            else ""
+        )
     })
 
-hfields = ["school","school_code","target_departments","official_relevant_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments"]
+hfields = ["school","school_code","target_departments","official_relevant_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments","review_note"]
 with open(OUT / "highschool-relevant-counts-114.csv", "w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=hfields); w.writeheader(); w.writerows(hout)
+
+# Cross-window duplicate audit: an exact official row should not be counted by two different invitation windows at the same school.
+u_row_owners = defaultdict(set)
+for x in uout:
+    if not x.get("matched_official_departments"):
+        continue
+    for detail in x["matched_official_departments"].split("；"):
+        if detail:
+            u_row_owners[(relaxed_school(x["school"]), detail)].add((x["window_email"], x["target_departments"]))
+u_duplicates = {k:v for k,v in u_row_owners.items() if len(v) > 1}
 
 uc = Counter(x["status"] for x in uout)
 hc = Counter(x["status"] for x in hout)
@@ -274,16 +330,21 @@ lines = [
 ]
 for k,v in sorted(uc.items()):
     lines.append("- %s: %s" % (k,v))
+lines.append("- Cross-window duplicate official rows: %s" % len(u_duplicates))
 lines += ["", "### University rows requiring review", ""]
 for x in uout:
-    if x["status"] not in ("AUTO_MATCHED","N/A_NON_ENROLLMENT"):
+    if x["status"] not in ("AUTO_MATCHED","N/A_NON_ENROLLMENT","VERIFIED_ALIAS"):
         lines.append("- %s｜%s｜%s｜unmatched=%s｜official=%s" % (x["school"], x["target_departments"], x["status"], x["unmatched_target_departments"], x.get("official_school_departments","")))
+if u_duplicates:
+    lines += ["", "### Cross-window duplicate official rows", ""]
+    for (school_key, detail), owners in sorted(u_duplicates.items()):
+        lines.append("- %s｜%s｜owners=%s" % (school_key, detail, sorted(owners)))
 lines += ["", "## High school", "- Target schools: %s" % len(hout)]
 for k,v in sorted(hc.items()):
     lines.append("- %s: %s" % (k,v))
 lines += ["", "### High-school rows requiring review", ""]
 for x in hout:
-    if x["status"] != "AUTO_MATCHED":
+    if x["status"] not in ("AUTO_MATCHED","MATCHED_WITH_114_ABSENCES","NO_114_TARGET_DEPT","NOT_OPEN_114"):
         lines.append("- %s (%s)｜%s｜unmatched=%s｜official=%s" % (x["school"], x["school_code"], x["status"], x["unmatched_target_departments"], x.get("official_school_departments","")))
 lines += ["", "## Source schemas", "", "### University headers", "", " | ".join(univ_headers), "", "### High-school headers", "", " | ".join(hs_headers), ""]
 (OUT / "validation-report.md").write_text("\n".join(lines), encoding="utf-8")
