@@ -23,6 +23,12 @@
 - MATCHED_WITH_114_ABSENCES: 6
 - NOT_OPEN_114: 1
 - NO_114_TARGET_DEPT: 2
+- Existing-count corrections: 2
+
+### High-school existing-count corrections
+
+- 臺中市大明高中 (061310)｜主檔既有值342；114教育部正式科別資料為352，應採114官方值
+- 國立嘉義高商 (200406)｜主檔既有值196；114教育部正式科別資料為186，應採114官方值
 
 ### High-school rows requiring review
 
