@@ -95,7 +95,7 @@ def plausible_univ_dept(target, official):
 
 def parse_targets(s):
     out = []
-    for raw in clean(s).split("；"):
+    for raw in re.split(r"[;；]", clean(s)):
         if not raw:
             continue
         p = strip_paren(raw)
@@ -130,7 +130,7 @@ with open(DATA / "university-targets.csv", encoding="utf-8") as f:
 ugroups = defaultdict(list)
 for t in targets:
     dept = clean(t["department"])
-    non_enrollment = ("實驗室" in dept or "研究中心" in dept)
+    non_enrollment = ("實驗室" in dept or "研究中心" in dept or "聲學智能與數據科學" in dept or "噪音振動研究" in dept)
     if non_enrollment:
         key = (relaxed_school(t["school"]), "N/A:" + t["row"])
     else:
