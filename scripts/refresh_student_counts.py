@@ -95,7 +95,8 @@ def plausible_univ_dept(target, official):
 
 def parse_targets(s):
     out = []
-    for raw in re.split(r"[;；]", clean(s)):
+    base = strip_paren(s)
+    for raw in re.split(r"[;；]", base):
         if not raw:
             continue
         p = strip_paren(raw)
@@ -145,7 +146,7 @@ for (school_key, window), group in ugroups.items():
         uout.append({
             "school": school, "window": group[0].get("window_name",""), "window_email": group[0].get("window_email",""),
             "target_rows": "|".join(x["row"] for x in group), "target_departments": "；".join(x["department"] for x in group),
-            "official_total_114": "", "matched_official_departments": "", "status": "N/A_NON_ENROLLMENT",
+            "official_total_114": "", "matched_official_departments": "", "official_school_departments": "", "status": "N/A_NON_ENROLLMENT",
             "unmatched_target_departments": ""
         })
         continue
@@ -178,10 +179,11 @@ for (school_key, window), group in ugroups.items():
         "school": school, "window": group[0].get("window_name",""), "window_email": group[0].get("window_email",""),
         "target_rows": "|".join(x["row"] for x in group), "target_departments": "；".join(x["department"] for x in group),
         "official_total_114": total if rows else "", "matched_official_departments": "；".join(details),
+        "official_school_departments": "；".join(sorted(set(str(r.get(udept,"")) for r in candidates))),
         "status": status, "unmatched_target_departments": "；".join(unmatched)
     })
 
-ufields = ["school","window","window_email","target_rows","target_departments","official_total_114","matched_official_departments","status","unmatched_target_departments"]
+ufields = ["school","window","window_email","target_rows","target_departments","official_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments"]
 with open(OUT / "university-window-counts-114.csv", "w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=ufields); w.writeheader(); w.writerows(uout)
 
@@ -253,10 +255,11 @@ for t in htargets:
     hout.append({
         "school": t["school"], "school_code": t["school_code"], "target_departments": t["relevant_departments"],
         "official_relevant_total_114": total if matched_rows else "", "matched_official_departments": "；".join(details),
+        "official_school_departments": "；".join("%s=%s" % (r.get(hdept), hs_row_total(r)) for r in sorted(candidates, key=lambda z: clean(z.get(hdept)))),
         "status": status, "unmatched_target_departments": "；".join(unmatched)
     })
 
-hfields = ["school","school_code","target_departments","official_relevant_total_114","matched_official_departments","status","unmatched_target_departments"]
+hfields = ["school","school_code","target_departments","official_relevant_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments"]
 with open(OUT / "highschool-relevant-counts-114.csv", "w", encoding="utf-8", newline="") as f:
     w = csv.DictWriter(f, fieldnames=hfields); w.writeheader(); w.writerows(hout)
 
@@ -274,14 +277,14 @@ for k,v in sorted(uc.items()):
 lines += ["", "### University rows requiring review", ""]
 for x in uout:
     if x["status"] not in ("AUTO_MATCHED","N/A_NON_ENROLLMENT"):
-        lines.append("- %s｜%s｜%s｜unmatched=%s" % (x["school"], x["target_departments"], x["status"], x["unmatched_target_departments"]))
+        lines.append("- %s｜%s｜%s｜unmatched=%s｜official=%s" % (x["school"], x["target_departments"], x["status"], x["unmatched_target_departments"], x.get("official_school_departments","")))
 lines += ["", "## High school", "- Target schools: %s" % len(hout)]
 for k,v in sorted(hc.items()):
     lines.append("- %s: %s" % (k,v))
 lines += ["", "### High-school rows requiring review", ""]
 for x in hout:
     if x["status"] != "AUTO_MATCHED":
-        lines.append("- %s (%s)｜%s｜unmatched=%s" % (x["school"], x["school_code"], x["status"], x["unmatched_target_departments"]))
+        lines.append("- %s (%s)｜%s｜unmatched=%s｜official=%s" % (x["school"], x["school_code"], x["status"], x["unmatched_target_departments"], x.get("official_school_departments","")))
 lines += ["", "## Source schemas", "", "### University headers", "", " | ".join(univ_headers), "", "### High-school headers", "", " | ".join(hs_headers), ""]
 (OUT / "validation-report.md").write_text("\n".join(lines), encoding="utf-8")
 
