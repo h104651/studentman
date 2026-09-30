@@ -190,10 +190,22 @@ for x in uout:
     elif "台南應用科技大學" in x["school"] and x["window_email"] == "emvcda@mail.tut.edu.tw":
         x["status"] = "VERIFIED_ALIAS"
         x["unmatched_target_departments"] = ""
+    elif x["school"] == "國立臺灣師範大學" and x["window_email"] == "ckteng@ntnu.edu.tw":
+        # 官方名稱為「設計學系設計創作碩士在職專班」，已由設計學系 prefix 完整納入。
+        x["status"] = "VERIFIED_ALIAS"
+        x["unmatched_target_departments"] = ""
+    elif x["school"] == "國立臺灣藝術大學" and x["window_email"] == "chuni@ntua.edu.tw":
+        # 動畫藝術／新媒體藝術碩士班在114官方資料均掛於「多媒體動畫藝術學系」之下。
+        x["status"] = "VERIFIED_ALIAS"
+        x["unmatched_target_departments"] = ""
+    elif x["school"] == "國立虎尾科技大學" and x["window_email"] == "hong.yi.pai@nfu.edu.tw":
+        # 官方名稱為「多媒體設計系數位內容創意產業碩士班」，已由母系 prefix 納入。
+        x["status"] = "VERIFIED_ALIAS"
+        x["unmatched_target_departments"] = ""
     elif x["school"] == "亞洲大學" and "創意設計學院不分系國際設計學士班" in x["target_departments"]:
-        # Exact program exists in older/public metadata but has no row in official 114 student-count dataset.
+        # 114官方學生數原始檔無此學程列；依114正式學籍資料視為0，保留歷史資料查核註記。
         x["official_total_114"] = 0
-        x["status"] = "NO_114_STUDENT_RECORD"
+        x["status"] = "FINAL_ZERO_NO_114_RECORD"
 
 ufields = ["school","window","window_email","target_rows","target_departments","official_total_114","matched_official_departments","official_school_departments","status","unmatched_target_departments"]
 with open(OUT / "university-window-counts-114.csv", "w", encoding="utf-8", newline="") as f:
@@ -333,7 +345,7 @@ for k,v in sorted(uc.items()):
 lines.append("- Cross-window duplicate official rows: %s" % len(u_duplicates))
 lines += ["", "### University rows requiring review", ""]
 for x in uout:
-    if x["status"] not in ("AUTO_MATCHED","N/A_NON_ENROLLMENT","VERIFIED_ALIAS"):
+    if x["status"] not in ("AUTO_MATCHED","N/A_NON_ENROLLMENT","VERIFIED_ALIAS","FINAL_ZERO_NO_114_RECORD"):
         lines.append("- %s｜%s｜%s｜unmatched=%s｜official=%s" % (x["school"], x["target_departments"], x["status"], x["unmatched_target_departments"], x.get("official_school_departments","")))
 if u_duplicates:
     lines += ["", "### Cross-window duplicate official rows", ""]
